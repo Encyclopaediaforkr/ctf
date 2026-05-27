@@ -1,5 +1,5 @@
 ---
-title: CTF
+title: CTF!
 ---
 
 
