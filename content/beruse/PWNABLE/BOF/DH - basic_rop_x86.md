@@ -54,6 +54,40 @@ ROPgadget --binary basic_rop_x86 | grep -E "pop .* pop .* pop .* ret"
 ```
 
 ---
+find "/bin/sh"
+```c
+strings -a -t x ./libc.so.6 | grep "/bin/sh"
+```
+
+in terminal
+```c
+from pwn import *
+
+# 1. 라이브러리 파일 로드
+libc = ELF("./libc.so.6")
+
+# 2. "/bin/sh" 문자열 탐색 및 오프셋 추출
+binsh_offset = next(libc.search(b"/bin/sh"))
+
+print("binsh offset:", hex(binsh_offset))
+
+# 3. 익스플로잇 코드 작성 시 실제 주소 계산 예시
+# binsh_address = libc_base + binsh_offset
+
+```
+in pwntools
+
+```c
+pwndbg> search "/bin/sh"
+```
+in pwndbg
+
+```c
+gdb> find &system, +9999999, "/bin/sh"
+```
+in gdb
+
+---
 ldd libc.so.6 check
 ```c
 student@ubuntu:~/dreamhack/basic_rop_x86$ ldd basic_rop_x86
