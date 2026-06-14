@@ -1,4 +1,23 @@
 ```c
+zip
+
+50 4B 03 04
+header
+
+50 4B 01 02
+central Directory
+
+50 4B 05 06
+End of Central directory recode
+
+50 4B 01 02 14 00 14 00 -- --
+저기 해당 1바이트가 이제 flag 암호를 걸고 푸는
+
+
+```
+
+
+```c
 PNG
 00 01 02 03 /04 05 06 07
 89 50 4E 47 /0D 0A 1A 0A
@@ -15,6 +34,9 @@ JPEG
 +00 +01 +02 +03 +04 +09~
 FF D8 FF E0 len JFIF\x00 (5B) SOI APP0 marker
 
+
+FF C0 00 11 08 -- -- -- --
+여기가 높이부분 -- -- Y축 첫번째 -- -- X축 두번쨰
 
 끝은 FF D9 -> 파일끝
  (EOI)
